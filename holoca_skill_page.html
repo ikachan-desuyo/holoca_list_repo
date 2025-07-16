@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>カード詳細検索ページ</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      font-size: 15px;
+      transition: background 0.3s, color 0.3s;
+      overflow-x: hidden;
+    }
+
+    .dark {
+      background: #222;
+      color: #eee;
+    }
+
+    .dark table {
+      background: #333;
+    }
+
+    .dark th, .dark td {
+      border-color: #666;
+    }
+
+    .dark input, .dark select, .dark textarea {
+      background: #444;
+      color: #eee;
+      border-color: #666;
+    }
+
+    .container {
+      max-width: none;
+      width: fit-content;
+      margin: 0 auto;
+      padding: 10px;
+    }
+
+    .top-bar {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 100;
+      border-bottom: 1px solid #ccc;
+      padding: 10px;
+    }
+
+    .dark .top-bar {
+      background: #222;
+      border-color: #444;
+    }
+
+    .top-bar .nav-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .top-bar button {
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .filter-group {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .dark .filter-group {
+      border-color: #666;
+    }
+
+    .filter-group legend {
+      font-weight: bold;
+      padding: 0 6px;
+    }
+
+    #filtersWrapper {
+      display: none;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .filter-row label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: auto;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: #f8f8f8;
+      z-index: 50;
+    }
+    .dark thead {
+      background: #333;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      font-size: 14px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .dark th, .dark td {
+      border-color: #666;
+    }
+
+    th:nth-child(2) {
+      white-space: nowrap;
+    }
+
+    td:nth-child(2) {
+      min-width: 140px;
+      max-width: 180px;
+      word-break: break-word;
+    }
+
+    td.name-cell .meta {
+      margin-top: 4px;
+      padding: 4px;
+      border-top: 1px dashed #ccc;
+      font-size: 13px;
+      color: #555;
+      line-height: 1.4;
+    }
+    .dark td.name-cell .meta {
+      border-top: 1px dashed #666;
+      color: #aaa;
+    }
+
+    td:nth-child(8), th:nth-child(8) {
+      word-break: break-word;
+      min-width: 320px;
+    }
+
+    input[type="number"] {
+      width: 40px;
+      background-color: #fff !important;
+      color: #000;
+      border: 1px solid #ccc;
+    }
+    .dark input[type="number"] {
+      background-color: #444 !important;
+      color: #eee;
+      border-color: #666;
+    }
+
+    img {
+      width: 60px;
+      border-radius: 4px;
+      cursor: zoom-in;
+      background-color: #fff;
+      border: 1px solid #ddd;
+    }
+
+    select {
+      font-size: 15px;
+      padding: 6px;
+      max-width: 240px;
+    }
+
+    input[type="text"] {
+      font-size: 15px;
+      padding: 6px;
+      width: 240px;
+    }
+
+    img.skill-icon {
+      border: none;
+      outline: none;
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <div class="nav-row">
+        <button onclick="history.back()">← 前のページへ</button>
+        <h2>カード詳細検索</h2>
+        <div class="controls">
+          <button onclick="toggleDarkMode()">🌗 モード切替</button>
+          <input type="text" id="keywordSearch" placeholder="すべての項目から検索..." oninput="renderTable()" />
+          <button onclick="toggleFilters()">🔽 フィルター表示／非表示</button>
+          <select id="sortMethod" onchange="renderTable()">
+            <option value="release" selected>発売日順</option>
+            <option value="id">カード番号順</option>
+            <option value="name">名前順</option>
+            <option value="rarity">レアリティ順</option>
+          </select>
+        </div>
+      </div>
+      <div id="filtersWrapper">
+        <fieldset class="filter-group">
+          <legend>所持状態</legend>
+          <div class="filter-row">
+            <label><input type="checkbox" name="ownedState" value="owned" checked onchange="renderTable()"> 所持あり</label>
+            <label><input type="checkbox" name="ownedState" value="unowned" checked onchange="renderTable()"> 所持なし</label>
+          </div>
+        </fieldset>
+
+        <fieldset class="filter-group">
+          <legend>レアリティ</legend>
+          <button onclick="selectAll('rarityFilter')">全選択</button>
+          <button onclick="clearAll('rarityFilter')">選択解除</button>
+          <div class="filter-row" id="rarityFilter"></div>
+        </fieldset>
+
+        <fieldset class="filter-group">
+          <legend>色</legend>
+          <button onclick="selectAll('colorFilter')">全選択</button>
+          <button onclick="clearAll('colorFilter')">選択解除</button>
+          <div class="filter-row" id="colorFilter"></div>
+        </fieldset>
+
+        <fieldset class="filter-group">
+          <legend>Bloom</legend>
+          <button onclick="selectAll('bloomFilter')">全選択</button>
+          <button onclick="clearAll('bloomFilter')">選択解除</button>
+          <div class="filter-row" id="bloomFilter"></div>
+        </fieldset>
+
+        <fieldset class="filter-group">
+          <legend>収録商品</legend>
+          <select id="productFilter" onchange="renderTable()">
+            <option value="">収録商品（選択）</option>
+          </select>
+        </fieldset>
+
+        <fieldset class="filter-group">
+          <legend>タグ絞り込み</legend>
+          <select id="tagsFilter" onchange="renderTable()">
+            <option value="">タグ（選択）</option>
+          </select>
+        </fieldset>
+      </div>
+    </div>
+
+    <table id="cardTable">
+      <thead>
+        <tr>
+          <th>画像</th>
+          <th>名前／番号／カードタイプ</th>
+          <th>レア</th>
+          <th>色</th>
+          <th>Bloom</th>
+          <th>HP</th>
+          <th>tags</th>
+          <th>skills</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div id="imageModal" onclick="hideImageModal()" style="
+      display:none;
+      position:fixed;
+      top:0; left:0;
+      width:100vw; height:100vh;
+      background:rgba(0,0,0,0.85);
+      text-align:center;
+      z-index:1000;
+      cursor:zoom-out;">
+      <img src="" style="
+        margin-top:5vh;
+        width:100%;
+        height:auto;
+        max-height:100dvh;
+        object-fit:contain;">
+    </div>
+    <script>
+      let cards = [];
+      let releaseMap = {};
+    
+      function toggleFilters() {
+        const el = document.getElementById("filtersWrapper");
+        el.style.display = el.style.display === "none" ? "block" : "none";
+      }
+    
+      function toggleDarkMode() {
+        document.body.classList.toggle("dark");
+        localStorage.setItem("darkMode", document.body.classList.contains("dark"));
+      }
+    
+      function selectAll(id) {
+        document.querySelectorAll(`#${id} input[type="checkbox"]`).forEach(cb => cb.checked = true);
+        renderTable();
+      }
+    
+      function clearAll(id) {
+        document.querySelectorAll(`#${id} input[type="checkbox"]`).forEach(cb => cb.checked = false);
+        renderTable();
+      }
+    
+      function showImageModal(src) {
+        const modal = document.getElementById("imageModal");
+        modal.querySelector("img").src = src;
+        modal.style.display = "block";
+      }
+    
+      function hideImageModal() {
+        document.getElementById("imageModal").style.display = "none";
+      }
+    
+      function sortCards(cards) {
+        const method = document.getElementById("sortMethod")?.value ?? "release";
+        const sorted = [...cards];
+    
+        if (method === "release") {
+          sorted.sort((a, b) => {
+            const ra = releaseMap[a.product] ?? "9999-12-31";
+            const rb = releaseMap[b.product] ?? "9999-12-31";
+            if (ra !== rb) return ra.localeCompare(rb);
+            if (a.product !== b.product) return a.product.localeCompare(b.product);
+            return a.id.localeCompare(b.id);
+          });
+        } else if (method === "id") {
+          sorted.sort((a, b) => a.id.localeCompare(b.id));
+        } else if (method === "name") {
+          sorted.sort((a, b) => a.name.localeCompare(b.name, "ja"));
+        } else if (method === "rarity") {
+          const rank = { "SR": 3, "R": 2, "N": 1 };
+          sorted.sort((a, b) => (rank[b.rarity] ?? 0) - (rank[a.rarity] ?? 0));
+        }
+    
+        return sorted;
+      }
+      function setupFilters() {
+    const raritySet = new Set(), colorSet = new Set(), bloomSet = new Set(), productSet = new Set(), tagSet = new Set();
+    cards.forEach(c => {
+      raritySet.add(c.rarity);
+      colorSet.add(c.color);
+      bloomSet.add(c.bloom);
+      if (!c.product.includes(",")) {
+        productSet.add(c.product);
+      }
+      c.tags.forEach(tag => tagSet.add(tag));
+    });
+
+    function populateCheck(id, items) {
+      const container = document.getElementById(id);
+      items.forEach(val => {
+        const label = document.createElement("label");
+        label.innerHTML = `<input type="checkbox" value="${val}" checked onchange="renderTable()"> ${val}`;
+        container.appendChild(label);
+      });
+    }
+
+    function populateSelect(id, items, label) {
+      const select = document.getElementById(id);
+      select.innerHTML = `<option value="">${label}</option>`;
+      [...items].sort().forEach(val => {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = val;
+        select.appendChild(opt);
+      });
+    }
+
+    populateCheck("rarityFilter", [...raritySet].sort());
+    populateCheck("colorFilter", [...colorSet].sort());
+    populateCheck("bloomFilter", [...bloomSet].sort());
+    populateSelect("productFilter", productSet, "収録商品");
+    populateSelect("tagsFilter", tagSet, "タグ（選択）");
+  }
+
+  const iconImageMap = {
+    red: "images/TCG-ColorArtIcon-Red.png",
+    blue: "images/TCG-ColorArtIcon-Blue.png",
+    yellow: "images/TCG-ColorArtIcon-Yellow.png",
+    green: "images/TCG-ColorArtIcon-Green.png",
+    purple: "images/TCG-ColorArtIcon-Purple.png",
+    white: "images/TCG-ColorArtIcon-White.png",
+    any: "images/TCG-ColorArtIcon-Colorless.png"
+  };
+
+  const tokkouImageMap = {
+    '赤+50': "images/tokkou_50_red.png",
+    '青+50': "images/tokkou_50_blue.png",
+    '黄+50': "images/tokkou_50_yellow.png",
+    '緑+50': "images/tokkou_50_green.png",
+    '紫+50': "images/tokkou_50_purple.png",
+    '白+50': "images/tokkou_50_white.png"
+  };
+
+  function renderSkills(skills) {
+    return skills.map(skill => {
+      // メインアイコン
+      const iconHTML = (skill.icons?.main ?? [])
+        .map(icon => {
+          const src = iconImageMap[icon.toLowerCase()];
+          return src
+            ? `<img src="${src}" alt="${icon}" class="skill-icon" style="height:20px; max-width:24px; object-fit:contain; background:transparent; vertical-align:middle;" />`
+            : icon;
+        })
+        .join(" ");
+
+      // 特攻アイコン（any は除外）
+      const tokkouHTML = (skill.icons?.tokkou ?? [])
+        .filter(t => tokkouImageMap[t.toLowerCase()])
+        .map(tokkou => {
+          const src = tokkouImageMap[tokkou.toLowerCase()];
+          return `<img src="${src}" alt="特攻:${tokkou}" class="skill-icon" style="height:52px; max-width:56px; object-fit:contain; background:transparent; vertical-align:middle;" />`;
+        })
+        .join(" ");
+
+      const iconsBlock = (iconHTML || tokkouHTML)
+        ? `<br>${iconHTML}${tokkouHTML ? "｜" + tokkouHTML : ""}`
+        : "";
+
+      // 表示タイプ別に処理
+      if (skill.text) {
+        return `<b>【${skill.type}】</b>${iconsBlock}<br>${skill.text}`;
+      } else if (skill.type === "キーワード") {
+        const subtype = skill.subtype ? `<b>【${skill.subtype}】</b>` : "";
+        const name = skill.name ?? "";
+        const desc = skill.description ?? "";
+        return `${subtype}${iconsBlock}<br>${name}<br>${desc}`;
+      } else {
+        const typePart = `<b>【${skill.type}】</b>`;
+        const namePart = skill.name ? `[${skill.name}]` : "";
+        const dmg = skill.dmg ? `（${skill.dmg}）` : "";
+        const subtype = skill.subtype ? `<br>${skill.subtype}` : "";
+        const desc = skill.description ?? "";
+        return `${typePart}${namePart}${dmg}${subtype}${iconsBlock}<br>${desc}`;
+      }
+    }).join("<br><br>");
+  }
+
+  function renderTable() {
+    const keyword = document.getElementById("keywordSearch").value.toLowerCase();
+    const getChecked = id => [...document.querySelectorAll(`#${id} input:checked`)].map(el => el.value);
+    const ownedStates = [...document.querySelectorAll('input[name="ownedState"]:checked')].map(el => el.value);
+    const rarity = getChecked("rarityFilter");
+    const color = getChecked("colorFilter");
+    const bloom = getChecked("bloomFilter");
+    const product = document.getElementById("productFilter").value.toLowerCase();
+    const tagFilter = document.getElementById("tagsFilter").value.toLowerCase();
+
+    const tbody = document.querySelector("#cardTable tbody");
+    tbody.innerHTML = "";
+
+    const filtered = cards.filter(card => {
+      const count = card.owned;
+      const matchOwned =
+        ownedStates.length === 0 ||
+        (ownedStates.includes("owned") && count > 0) ||
+        (ownedStates.includes("unowned") && (!count || count == 0));
+      if (!matchOwned) return false;
+
+      const allText = [
+        card.name, card.id, card.rarity, card.color, card.bloom,
+        card.hp ?? card.life ?? "", card.product, card.card_type,
+        card.tags.join(" "), renderSkills(card.skills).replace(/<br>/g, " ")
+      ].join(" ").toLowerCase();
+
+      const match = {
+        rarity: rarity.length === 0 || rarity.includes(card.rarity),
+        color: color.length === 0 || color.includes(card.color),
+        bloom: bloom.length === 0 || bloom.includes(card.bloom),
+        product: !product || card.product.toLowerCase().includes(product),
+        keyword: !keyword || allText.includes(keyword),
+        tags: !tagFilter || card.tags.map(t => t.toLowerCase()).includes(tagFilter)
+      };
+
+      return !Object.values(match).includes(false);
+    });
+
+    const sortedCards = sortCards(filtered);
+
+    sortedCards.forEach(card => {
+      const bloomText = card.card_type === "Buzzホロメン" ? "1stBuzz" : card.bloom;
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td><img src="${card.image}" alt="${card.name}" onclick="showImageModal('${card.image}')"></td>
+        <td class="name-cell">
+          <div style="font-weight: bold;">${card.name}</div>
+          <div class="meta">
+            📄 ${card.id}<br>🃏 ${card.card_type}
+          </div>
+        </td>
+        <td>${card.rarity}</td>
+        <td>${card.color}</td>
+        <td>${bloomText}</td>
+        <td>${card.hp ?? card.life ?? "-"}</td>
+        <td>${card.tags.join("<br>")}</td>
+        <td>${renderSkills(card.skills)}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  window.onload = async () => {
+    if (localStorage.getItem("darkMode") === "true") {
+      document.body.classList.add("dark");
+    }
+
+    try {
+      const [cardRes, releaseRes] = await Promise.all([
+        fetch("json_file/card_data.json"),
+        fetch("json_file/release_dates.json")
+      ]);
+      const rawData = await cardRes.json();
+      releaseMap = await releaseRes.json();
+
+      cards = Object.entries(rawData).map(([key, card]) => ({
+        id: key,
+        name: card.name,
+        rarity: card.rarity ?? "-",
+        color: card.color ?? "-",
+        bloom: card.bloom_level ?? "-",
+        hp: card.hp ?? null,
+        life: card.life ?? null,
+        product: card.product ?? "-",
+        tags: card.tags ?? [],
+        skills: card.skills ?? [],
+        image: card.image_url,
+        owned: parseInt(localStorage.getItem("count_" + key) ?? "0"),
+        card_type: card.card_type ?? "-"
+      }));
+
+      setupFilters();
+      renderTable();
+    } catch (err) {
+      console.error(err);
+      alert("データの読み込みに失敗しました！");
+    }
+  };
+</script>
+</body>
+</html>
