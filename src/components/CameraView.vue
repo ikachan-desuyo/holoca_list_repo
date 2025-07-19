@@ -3,7 +3,7 @@
     <!-- カメラ起動ボタン -->
     <button v-if="!cameraActive" @click="startCamera">📸 カメラを起動</button>
 
-    <!-- カメラ映像 -->
+    <!-- 映像表示 -->
     <video
       v-show="cameraActive"
       ref="videoRef"
@@ -13,14 +13,14 @@
       style="width:100%; max-width:400px; border:1px solid #ccc;"
     ></video>
 
-    <!-- 認識結果用 canvas（後続ステップで使用） -->
+    <!-- 認識枠描画 canvas -->
     <canvas
       v-show="cameraActive"
       ref="canvasRef"
       style="display:block; margin-top:12px; width:100%; max-width:400px;"
     ></canvas>
 
-    <!-- 認識されたカードの表示 -->
+    <!-- 認識結果表示（後続ステップ用） -->
     <div v-if="matchedCard" style="margin-top:16px;">
       <h3>認識されたカード：{{ matchedCard.name }}</h3>
       <img :src="matchedCard.image_url" style="width:200px; border-radius:8px;" />
@@ -29,8 +29,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 
+// DOM参照と状態
 const videoRef = ref<HTMLVideoElement>()
 const canvasRef = ref<HTMLCanvasElement>()
 const cameraActive = ref(false)
@@ -38,43 +39,80 @@ const matchedCard = ref<{ name: string; image_url: string } | null>(null)
 
 let stream: MediaStream | null = null
 
-// カメラ起動
+// カメラ起動処理
 async function startCamera() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: true })
     if (videoRef.value) {
       videoRef.value.srcObject = stream
       cameraActive.value = true
-      startDetectionLoop()
+      await startDetectionLoop()
     }
   } catch (err) {
-    alert('カメラ起動に失敗しました（HTTPS接続や権限をご確認ください）')
+    alert('カメラが起動できませんでした（HTTPS接続や権限設定をご確認ください）')
+    console.error('Camera error:', err)
   }
 }
 
-// 認識ループ（canvasに枠を描画）
-function startDetectionLoop() {
-  const canvas = canvasRef.value
-  const video = videoRef.value
-  if (!canvas || !video) return
+// OpenCV準備待機
+function waitUntilOpenCVReady(): Promise<void> {
+  return new Promise((resolve) => {
+    const check = () => {
+      if (window.cv && cv.Mat) resolve()
+      else setTimeout(check, 100)
+    }
+    check()
+  })
+}
 
+// 矩形検出＆canvas描画ループ
+async function startDetectionLoop() {
+  const canvas = canvasRef.value!
+  const video = videoRef.value!
   const ctx = canvas.getContext('2d')!
+
   canvas.width = video.videoWidth
   canvas.height = video.videoHeight
 
+  await waitUntilOpenCVReady()
+
+  const src = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC4)
+  const gray = new cv.Mat()
+  const cap = new cv.VideoCapture(video)
+
   const loop = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    cap.read(src)
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
+
+    const edges = new cv.Mat()
+    cv.Canny(gray, edges, 50, 150)
+
+    const contours = new cv.MatVector()
+    const hierarchy = new cv.Mat()
+    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-    // 💡 仮の矩形領域（中央のエリアを毎回描画する例）
-    const rectWidth = canvas.width * 0.6
-    const rectHeight = canvas.height * 0.75
-    const rectX = (canvas.width - rectWidth) / 2
-    const rectY = (canvas.height - rectHeight) / 2
+    for (let i = 0; i < contours.size(); i++) {
+      const contour = contours.get(i)
+      const rect = cv.boundingRect(contour)
 
-    ctx.strokeStyle = '#00ff88'
-    ctx.lineWidth = 4
-    ctx.strokeRect(rectX, rectY, rectWidth, rectHeight)
+      const aspectRatio = rect.width / rect.height
+      const targetRatio = 63 / 88
+      const tolerance = 0.2
+
+      if (Math.abs(aspectRatio - targetRatio) < tolerance) {
+        ctx.strokeStyle = '#00ff88'
+        ctx.lineWidth = 3
+        ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
+      }
+
+      contour.delete()
+    }
+
+    edges.delete()
+    contours.delete()
+    hierarchy.delete()
 
     requestAnimationFrame(loop)
   }
