@@ -1,50 +1,61 @@
 <template>
   <div>
-    <video ref="videoRef" autoplay muted playsinline></video>
-    <canvas ref="canvasRef"></canvas>
-    <div v-if="matchedCard">
-      <p>カード認識：{{ matchedCard.name }}</p>
-      <img :src="matchedCard.image_url" />
+    <!-- カメラ起動ボタン -->
+    <button v-if="!cameraActive" @click="startCamera">📸 カメラを起動</button>
+
+    <!-- カメラ映像 -->
+    <video
+      v-show="cameraActive"
+      ref="videoRef"
+      autoplay
+      muted
+      playsinline
+      style="width:100%; max-width:400px; border:1px solid #ccc;"
+    ></video>
+
+    <!-- 認識結果用 canvas（後続ステップで使用） -->
+    <canvas
+      v-show="cameraActive"
+      ref="canvasRef"
+      style="display:block; margin-top:12px; width:100%; max-width:400px;"
+    ></canvas>
+
+    <!-- 認識されたカードの表示 -->
+    <div v-if="matchedCard" style="margin-top:16px;">
+      <h3>認識されたカード：{{ matchedCard.name }}</h3>
+      <img :src="matchedCard.image_url" style="width:200px; border-radius:8px;" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { matchFeatures } from '../utils/matcher'
-import featuresData from '../assets/features.json'
+import { ref } from 'vue'
 
+// DOM参照
 const videoRef = ref<HTMLVideoElement>()
 const canvasRef = ref<HTMLCanvasElement>()
+
+// 状態管理
+const cameraActive = ref(false)
 const matchedCard = ref<{ name: string; image_url: string } | null>(null)
 
-onMounted(async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-  if (videoRef.value) videoRef.value.srcObject = stream
+// カメラ起動処理
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+    if (videoRef.value) {
+      videoRef.value.srcObject = stream
+      cameraActive.value = true
+      console.log('✅ カメラ起動成功')
 
-  const cv = await loadOpenCV() // ← WASM読み込み関数（省略可）
-  const cap = new cv.VideoCapture(videoRef.value!)
-
-  const detect = () => {
-    const frame = new cv.Mat(videoRef.value!.videoHeight, videoRef.value!.videoWidth, cv.CV_8UC4)
-    cap.read(frame)
-
-    const roi = extractCardRegion(frame, cv) // ← 矩形検出（この関数は別途設計）
-
-    if (roi) {
-      const keypoints = new cv.KeyPointVector()
-      const descriptors = new cv.Mat()
-      const detector = new cv.ORB()
-      detector.detectAndCompute(roi, new cv.Mat(), keypoints, descriptors)
-
-      const matched = matchFeatures(descriptors, featuresData, cv)
-      if (matched) matchedCard.value = matched
+      // このあと OpenCV.js の処理や認識ループを追加する予定
+      // → detectLoop() などの関数はステップ②で定義
     }
-
-    frame.delete()
-    setTimeout(detect, 1000)
+  } catch (err) {
+    console.error('❌ カメラ起動失敗:', err)
+    alert(
+      'カメラが起動できませんでした。\nHTTPS接続か端末の権限設定を確認してください。'
+    )
   }
-
-  detect()
-})
+}
 </script>
