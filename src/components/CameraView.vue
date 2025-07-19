@@ -29,33 +29,56 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
-// DOM参照
 const videoRef = ref<HTMLVideoElement>()
 const canvasRef = ref<HTMLCanvasElement>()
-
-// 状態管理
 const cameraActive = ref(false)
 const matchedCard = ref<{ name: string; image_url: string } | null>(null)
 
-// カメラ起動処理
+let stream: MediaStream | null = null
+
+// カメラ起動
 async function startCamera() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+    stream = await navigator.mediaDevices.getUserMedia({ video: true })
     if (videoRef.value) {
       videoRef.value.srcObject = stream
       cameraActive.value = true
-      console.log('✅ カメラ起動成功')
-
-      // このあと OpenCV.js の処理や認識ループを追加する予定
-      // → detectLoop() などの関数はステップ②で定義
+      startDetectionLoop()
     }
   } catch (err) {
-    console.error('❌ カメラ起動失敗:', err)
-    alert(
-      'カメラが起動できませんでした。\nHTTPS接続か端末の権限設定を確認してください。'
-    )
+    alert('カメラ起動に失敗しました（HTTPS接続や権限をご確認ください）')
   }
+}
+
+// 認識ループ（canvasに枠を描画）
+function startDetectionLoop() {
+  const canvas = canvasRef.value
+  const video = videoRef.value
+  if (!canvas || !video) return
+
+  const ctx = canvas.getContext('2d')!
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+
+  const loop = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    // 💡 仮の矩形領域（中央のエリアを毎回描画する例）
+    const rectWidth = canvas.width * 0.6
+    const rectHeight = canvas.height * 0.75
+    const rectX = (canvas.width - rectWidth) / 2
+    const rectY = (canvas.height - rectHeight) / 2
+
+    ctx.strokeStyle = '#00ff88'
+    ctx.lineWidth = 4
+    ctx.strokeRect(rectX, rectY, rectWidth, rectHeight)
+
+    requestAnimationFrame(loop)
+  }
+
+  loop()
 }
 </script>
