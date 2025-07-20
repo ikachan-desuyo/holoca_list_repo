@@ -1,12 +1,13 @@
 <template>
   <div>
     <button v-if="!cameraActive" @click="startCamera">📸 カメラを起動</button>
+    <!-- デバッグ用にvideoを表示 -->
     <video
       ref="videoRef"
       autoplay
       muted
       playsinline
-      style="display:none"
+      style="display:block; width:100%; max-width:400px; border:1px solid #f66; margin-bottom:8px;"
     ></video>
     <canvas
       ref="canvasRef"
@@ -25,21 +26,21 @@ let stream: MediaStream | null = null
 
 async function startCamera() {
   try {
-    // 背面カメラを優先
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { exact: "environment" } }
     })
     if (videoRef.value) {
       videoRef.value.srcObject = stream
+      await videoRef.value.play() // ← 追加
       cameraActive.value = true
       startDrawingLoop()
     }
   } catch (err) {
-    // 背面カメラがなければ通常カメラ
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: true })
       if (videoRef.value) {
         videoRef.value.srcObject = stream
+        await videoRef.value.play() // ← 追加
         cameraActive.value = true
         startDrawingLoop()
       }
