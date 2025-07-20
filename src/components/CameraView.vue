@@ -82,39 +82,36 @@ function startDrawingLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-    // OpenCV.jsでエッジ検出
     if (window.cv && cv.Mat) {
-      // OpenCV用Matを作成
+      // --- OpenCV処理 ---
       const src = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC4)
       const gray = new cv.Mat()
       const edges = new cv.Mat()
 
-      // canvasから画像データを取得してMatに変換
       let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
       src.data.set(imageData.data)
 
-      // グレースケール変換
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
-      // エッジ検出
       cv.Canny(gray, edges, 50, 150)
 
-      // エッジ画像をcanvasに重ねて描画
-      // 一時的にImageDataへ変換
       const edgeImageData = new ImageData(
         new Uint8ClampedArray(edges.data),
         edges.cols,
         edges.rows
       )
-      // 半透明で重ねる
       ctx.save()
       ctx.globalAlpha = 0.5
       ctx.putImageData(edgeImageData, 0, 0)
       ctx.restore()
 
-      // メモリ解放
       src.delete()
       gray.delete()
       edges.delete()
+    } else {
+      // OpenCV未ロード時もcanvasにテキストを描画
+      ctx.font = 'bold 32px sans-serif'
+      ctx.fillStyle = '#f00'
+      ctx.fillText('OpenCV loading...', 30, 50)
     }
 
     requestAnimationFrame(loop)
