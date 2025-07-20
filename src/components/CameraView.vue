@@ -9,11 +9,34 @@
     <div v-if="!opencvReady" style="color:#f00; margin-top:12px;">OpenCV.js 読み込み中...</div>
     <div v-if="errorMsg" style="color:#f00; margin-top:12px; white-space:pre-wrap;">{{ errorMsg }}</div>
     <div v-if="recognizedCard" style="color:#080; margin-top:12px;">認識結果: {{ recognizedCard }}</div>
+    <!-- ▼ 特徴点可視化セレクタと画像表示を追加 -->
+    <div style="margin-top:24px;">
+      <label>特徴点可視化カード選択：</label>
+      <select v-model="selectedFeatureIdx">
+        <option v-for="(feature, idx) in features" :key="feature.image_url" :value="idx">
+          {{ feature.image_url ? feature.image_url.split('/').pop() : feature.name || idx }}
+        </option>
+      </select>
+      <div v-if="selectedFeatureIdx !== null && features[selectedFeatureIdx]">
+        <img
+          :src="features[selectedFeatureIdx].image_url"
+          :alt="features[selectedFeatureIdx].name"
+          ref="featureImgRef"
+          style="max-width:300px; display:block; margin:12px 0; border:1px solid #ccc;"
+          @load="drawKeypoints"
+        />
+        <canvas
+          ref="featureKeyCanvasRef"
+          style="max-width:300px; display:block; margin-bottom:12px; border:1px solid #ccc;"
+        ></canvas>
+      </div>
+    </div>
+    <!-- ▲ ここまで -->
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
 const videoRef = ref<HTMLVideoElement>()
 const canvasRef = ref<HTMLCanvasElement>()
@@ -24,7 +47,12 @@ const features = ref<any[]>([])
 const recognizedCard = ref('')
 let stream: MediaStream | null = null
 
-// OpenCV.jsロード検知
+// ▼ 特徴点可視化用
+const selectedFeatureIdx = ref<number | null>(null)
+const featureImgRef = ref<HTMLImageElement>()
+const featureKeyCanvasRef = ref<HTMLCanvasElement>()
+// ▲
+
 onMounted(async () => {
   function checkOpenCV() {
     if (window.cv && cv.Mat) {
@@ -48,10 +76,42 @@ onMounted(async () => {
     const baseUrl = import.meta.env.BASE_URL || '/'
     const res = await fetch(baseUrl + 'features.json')
     features.value = await res.json()
+    // デフォルトで最初のカードを選択
+    if (features.value.length > 0) selectedFeatureIdx.value = 0
   } catch (e) {
     errorMsg.value = 'features.jsonの読み込みに失敗しました\n' + (e instanceof Error ? e.message : String(e))
   }
 })
+
+// ▼ 特徴点可視化処理
+function drawKeypoints() {
+  const idx = selectedFeatureIdx.value
+  if (idx === null || !features.value[idx] || !featureImgRef.value || !featureKeyCanvasRef.value) return
+  const img = featureImgRef.value
+  const canvas = featureKeyCanvasRef.value
+  const ctx = canvas.getContext('2d')!
+  // 画像サイズにcanvasを合わせる
+  canvas.width = img.naturalWidth
+  canvas.height = img.naturalHeight
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+  // 特徴点を描画
+  const keypoints = features.value[idx].keypoints || []
+  ctx.save()
+  ctx.strokeStyle = 'red'
+  ctx.lineWidth = 2
+  for (const kp of keypoints) {
+    // ORBの場合 [x, y, size, angle, response, octave, class_id] など
+    const x = kp[0], y = kp[1]
+    ctx.beginPath()
+    ctx.arc(x, y, 4, 0, 2 * Math.PI)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+// セレクト変更時や画像ロード時に再描画
+watch(selectedFeatureIdx, () => setTimeout(drawKeypoints, 0))
+// ▲
 
 async function startCamera() {
   errorMsg.value = ''
