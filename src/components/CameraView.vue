@@ -7,7 +7,7 @@
       autoplay
       muted
       playsinline
-      style="display:block; width:100%; max-width:400px; border:1px solid #f66; margin-bottom:8px;"
+      style="display:none"
     ></video>
     <canvas
       ref="canvasRef"
@@ -31,7 +31,7 @@ async function startCamera() {
     })
     if (videoRef.value) {
       videoRef.value.srcObject = stream
-      await videoRef.value.play() // ← 追加
+      await videoRef.value.play()
       cameraActive.value = true
       startDrawingLoop()
     }
@@ -40,7 +40,7 @@ async function startCamera() {
       stream = await navigator.mediaDevices.getUserMedia({ video: true })
       if (videoRef.value) {
         videoRef.value.srcObject = stream
-        await videoRef.value.play() // ← 追加
+        await videoRef.value.play()
         cameraActive.value = true
         startDrawingLoop()
       }
@@ -56,8 +56,16 @@ function startDrawingLoop() {
   const canvas = canvasRef.value!
   const ctx = canvas.getContext('2d')!
 
-  canvas.width = 640
-  canvas.height = 480
+  // カメラ映像のサイズが取得できるまで待つ
+  function waitForVideoReady() {
+    if (video.videoWidth > 0 && video.videoHeight > 0) {
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      loop()
+    } else {
+      requestAnimationFrame(waitForVideoReady)
+    }
+  }
 
   function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -65,12 +73,11 @@ function startDrawingLoop() {
     ctx.font = 'bold 32px sans-serif'
     ctx.fillStyle = '#00f'
     ctx.fillText('Hello Canvas!', 30, 50)
-    // canvasの更新を継続
     if (cameraActive.value) {
       requestAnimationFrame(loop)
     }
   }
 
-  loop()
+  waitForVideoReady()
 }
 </script>
