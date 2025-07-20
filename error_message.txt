@@ -1,0 +1,22 @@
+【カメラ起動失敗時】
+カメラが起動できませんでした
+（エラー詳細）
+
+【cv.imread(canvas) の失敗時】
+cv.imread(canvas) で失敗しました
+（エラー詳細）
+
+【OpenCV画像処理（cvtColor, Canny等）で失敗時】
+OpenCV画像処理で失敗しました
+（エラー詳細）
+
+【ImageData生成や描画で失敗時（型やサイズ不一致など）】
+ImageData生成または描画で失敗しました
+（エラー詳細）
+
+【edges.data.lengthとcols*rowsの不一致時】
+edges.data.length ([値]) と cols*rows ([値]) が一致しません
+
+【その他のOpenCV例外時】
+OpenCV error!
+（エラー詳細）

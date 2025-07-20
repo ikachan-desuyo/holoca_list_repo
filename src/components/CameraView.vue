@@ -124,20 +124,21 @@ function startDrawingLoop() {
           return
         }
 
-        // ImageData生成時の型やサイズ不一致を検知
+        // ImageData生成時の型やサイズ不一致を検知し、RGBA変換で対応
         try {
-          if (edges.data.length !== edges.cols * edges.rows) {
-            throw new Error(`edges.data.length (${edges.data.length}) と cols*rows (${edges.cols * edges.rows}) が一致しません`)
-          }
+          // Cannyの出力は1chなのでRGBAに変換
+          const rgba = new cv.Mat()
+          cv.cvtColor(edges, rgba, cv.COLOR_GRAY2RGBA)
           const edgeImageData = new ImageData(
-            new Uint8ClampedArray(edges.data),
-            edges.cols,
-            edges.rows
+            new Uint8ClampedArray(rgba.data),
+            rgba.cols,
+            rgba.rows
           )
           ctx.save()
           ctx.globalAlpha = 0.5
           ctx.putImageData(edgeImageData, 0, 0)
           ctx.restore()
+          rgba.delete()
         } catch (e) {
           errorMsg.value = 'ImageData生成または描画で失敗しました\n' + (e instanceof Error ? e.message : String(e))
         }
