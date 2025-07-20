@@ -191,7 +191,20 @@ async function startDetectionLoop() {
         ctx.fillText('CARD?', rect.x, rect.y + 20)
 
         debugStatus.value = 'Card-like rectangle found. Matching features...'
-        // ...以下略...
+        // 1. カード領域の画像データを取得
+        const cardImageData = ctx.getImageData(rect.x, rect.y, rect.width, rect.height)
+        // 2. 特徴量を抽出
+        const descriptors = extractDescriptorsFromImageData(cardImageData)
+        // 3. features.jsonと照合
+        if (features.value.length > 0) {
+          const bestMatch = matchFeatures(descriptors, features.value)
+          if (bestMatch) {
+            matchedCard.value = { name: bestMatch.name, image_url: bestMatch.image_url }
+            debugStatus.value = 'Card matched: ' + bestMatch.name
+          } else {
+            debugStatus.value = 'No card matched'
+          }
+        }
       }
       contour.delete()
     }
