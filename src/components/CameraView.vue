@@ -122,3 +122,4 @@ function startDrawingLoop() {
 
   waitForVideoReady()
 }
+</script>
