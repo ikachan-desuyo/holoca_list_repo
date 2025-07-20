@@ -43,9 +43,10 @@ onMounted(async () => {
   setTimeout(checkOpenCV, 2000)
   checkOpenCV()
 
-  // features.jsonの読み込み
+  // features.jsonの読み込み（Vite/GitHub Pages対応）
   try {
-    const res = await fetch('/features.json')
+    const baseUrl = import.meta.env.BASE_URL || '/'
+    const res = await fetch(baseUrl + 'features.json')
     features.value = await res.json()
   } catch (e) {
     errorMsg.value = 'features.jsonの読み込みに失敗しました\n' + (e instanceof Error ? e.message : String(e))
