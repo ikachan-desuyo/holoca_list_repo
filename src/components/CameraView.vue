@@ -1,6 +1,6 @@
 <template>
   <div>
-    <button v-if="!cameraActive" @click="startCamera">📸 カメラを起動</button>
+    <button v-if="!cameraActive && opencvReady" @click="startCamera">📸 カメラを起動</button>
     <video
       ref="videoRef"
       autoplay
@@ -12,30 +12,40 @@
       ref="canvasRef"
       style="display:block; margin-top:12px; width:100%; max-width:400px; border:1px solid #ccc;"
     ></canvas>
+    <div v-if="!opencvReady" style="color:#f00; margin-top:12px;">OpenCV.js 読み込み中...</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const videoRef = ref<HTMLVideoElement>()
 const canvasRef = ref<HTMLCanvasElement>()
 const cameraActive = ref(false)
+const opencvReady = ref(false)
 let stream: MediaStream | null = null
 
-// OpenCV.jsのロード待ち
-function waitUntilOpenCVReady(): Promise<void> {
-  return new Promise((resolve) => {
-    const check = () => {
-      if ((window as any).cv && (window as any).cv.Mat) resolve()
-      else setTimeout(check, 100)
+// OpenCV.jsのonloadイベントでフラグを立てる
+onMounted(() => {
+  // すでにロード済みなら即座にtrue
+  if (window.cv && window.cv.Mat) {
+    opencvReady.value = true
+    return
+  }
+  // scriptタグを探してonloadを設定
+  const scripts = document.getElementsByTagName('script')
+  for (let i = 0; i < scripts.length; i++) {
+    const s = scripts[i]
+    if (s.src && s.src.includes('opencv.js')) {
+      s.addEventListener('load', () => {
+        opencvReady.value = true
+      })
+      break
     }
-    check()
-  })
-}
+  }
+})
 
 async function startCamera() {
-  // 既存のstreamがあれば停止
   if (stream) {
     stream.getTracks().forEach(track => track.stop())
   }
@@ -47,7 +57,6 @@ async function startCamera() {
       videoRef.value.srcObject = stream
       await videoRef.value.play()
       cameraActive.value = true
-      await waitUntilOpenCVReady()
       startDrawingLoop()
     }
   } catch (err) {
@@ -57,7 +66,6 @@ async function startCamera() {
         videoRef.value.srcObject = stream
         await videoRef.value.play()
         cameraActive.value = true
-        await waitUntilOpenCVReady()
         startDrawingLoop()
       }
     } catch (err2) {
@@ -88,7 +96,6 @@ function startDrawingLoop() {
 
     try {
       if (window.cv && cv.Mat) {
-        // canvasから直接Matを作成
         const src = cv.imread(canvas)
         const gray = new cv.Mat()
         const edges = new cv.Mat()
@@ -96,7 +103,6 @@ function startDrawingLoop() {
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
         cv.Canny(gray, edges, 50, 150)
 
-        // エッジ画像をImageDataに変換
         const edgeImageData = new ImageData(
           new Uint8ClampedArray(edges.data),
           edges.cols,
@@ -116,7 +122,6 @@ function startDrawingLoop() {
         ctx.fillText('OpenCV loading...', 30, 50)
       }
     } catch (e) {
-      // 例外が発生した場合も映像だけは表示
       ctx.font = 'bold 32px sans-serif'
       ctx.fillStyle = '#f00'
       ctx.fillText('OpenCV error!', 30, 80)
