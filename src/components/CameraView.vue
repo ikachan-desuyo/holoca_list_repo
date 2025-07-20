@@ -120,10 +120,10 @@ async function startDetectionLoop() {
   const ctx = canvas.getContext('2d')!
   const debugCtx = debugCanvas.getContext('2d')!
 
-  canvas.width = video.videoWidth
-  canvas.height = video.videoHeight
-  debugCanvas.width = video.videoWidth
-  debugCanvas.height = video.videoHeight
+  canvas.width = 640
+  canvas.height = 480
+  debugCanvas.width = 640
+  debugCanvas.height = 480
 
   await waitUntilOpenCVReady()
 
@@ -133,6 +133,10 @@ async function startDetectionLoop() {
   const cap = new cv.VideoCapture(video)
 
   const loop = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.font = 'bold 32px sans-serif'
+    ctx.fillStyle = '#00f'
+    ctx.fillText('Hello Canvas!', 30, 50)
     cap.read(src)
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
     debugStatus.value = 'Canny edge detection...'
@@ -148,10 +152,9 @@ async function startDetectionLoop() {
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-      ctx.font = 'bold 32px sans-serif'
-      ctx.fillStyle = '#00f'
-      ctx.fillText('hololive card reading', 30, 50)
-
+    ctx.font = 'bold 32px sans-serif'
+    ctx.fillStyle = '#00f'
+    ctx.fillText('hololive card reading', 30, 50)
 
     let detected = false
     let foundRect = false
