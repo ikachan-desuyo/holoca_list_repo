@@ -25,15 +25,28 @@ let stream: MediaStream | null = null
 
 async function startCamera() {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: true })
+    // 背面カメラを優先
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: "environment" } }
+    })
     if (videoRef.value) {
       videoRef.value.srcObject = stream
       cameraActive.value = true
       startDrawingLoop()
     }
   } catch (err) {
-    alert('カメラが起動できませんでした')
-    console.error('Camera error:', err)
+    // 背面カメラがなければ通常カメラ
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      if (videoRef.value) {
+        videoRef.value.srcObject = stream
+        cameraActive.value = true
+        startDrawingLoop()
+      }
+    } catch (err2) {
+      alert('カメラが起動できませんでした')
+      console.error('Camera error:', err2)
+    }
   }
 }
 
@@ -42,19 +55,19 @@ function startDrawingLoop() {
   const canvas = canvasRef.value!
   const ctx = canvas.getContext('2d')!
 
-  // サイズを固定（必要に応じてvideoのサイズ取得でもOK）
   canvas.width = 640
   canvas.height = 480
 
   function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    // カメラ映像をcanvasに描画
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-    // テスト用テキストを重ねて描画
     ctx.font = 'bold 32px sans-serif'
     ctx.fillStyle = '#00f'
     ctx.fillText('Hello Canvas!', 30, 50)
-    requestAnimationFrame(loop)
+    // canvasの更新を継続
+    if (cameraActive.value) {
+      requestAnimationFrame(loop)
+    }
   }
 
   loop()
