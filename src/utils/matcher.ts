@@ -1,27 +1,29 @@
 export function matchFeatures(
-  inputDescriptors: any,
-  referenceData: any[],
-  cv: any
+  inputDescriptors: number[][],
+  referenceData: { name: string; image_url: string; descriptors: number[][] }[]
 ): { name: string; image_url: string } | null {
   let bestMatch = null
-  let highestScore = 0
+  let minDistance = Infinity
 
   for (const card of referenceData) {
-    const refDescriptors = cv.matFromArray(card.descriptors, cv.CV_8U) // JSON配列から復元
-    const matcher = new cv.BFMatcher(cv.NORM_HAMMING, false)
-    const matches = new cv.DMatchVector()
-
-    matcher.match(inputDescriptors, refDescriptors, matches)
-
-    const score = matches.size()
-    if (score > highestScore) {
-      highestScore = score
+    const refDescriptors = card.descriptors
+    // 距離計算
+    let sum = 0
+    const len = Math.min(inputDescriptors.length, refDescriptors.length)
+    for (let i = 0; i < len; i++) {
+      const d1 = inputDescriptors[i]
+      const d2 = refDescriptors[i]
+      sum += Math.sqrt(
+        Math.pow(d1[0] - d2[0], 2) +
+        Math.pow(d1[1] - d2[1], 2) +
+        Math.pow(d1[2] - d2[2], 2)
+      )
+    }
+    const avgDist = sum / len
+    if (avgDist < minDistance) {
+      minDistance = avgDist
       bestMatch = card
     }
-
-    refDescriptors.delete()
-    matcher.delete()
-    matches.delete()
   }
 
   return bestMatch

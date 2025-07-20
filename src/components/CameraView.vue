@@ -1,9 +1,6 @@
 <template>
   <div>
-    <!-- カメラ起動ボタン -->
     <button v-if="!cameraActive" @click="startCamera">📸 カメラを起動</button>
-
-    <!-- 映像表示 -->
     <video
       v-show="cameraActive"
       ref="videoRef"
@@ -12,15 +9,11 @@
       playsinline
       style="width:100%; max-width:400px; border:1px solid #ccc;"
     ></video>
-
-    <!-- 認識枠描画 canvas -->
     <canvas
       v-show="cameraActive"
       ref="canvasRef"
       style="display:block; margin-top:12px; width:100%; max-width:400px;"
     ></canvas>
-
-    <!-- 認識結果表示（後続ステップ用） -->
     <div v-if="matchedCard" style="margin-top:16px;">
       <h3>認識されたカード：{{ matchedCard.name }}</h3>
       <img :src="matchedCard.image_url" style="width:200px; border-radius:8px;" />
@@ -29,15 +22,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { matchFeatures } from '../utils/matcher'
 
-// DOM参照と状態
 const videoRef = ref<HTMLVideoElement>()
 const canvasRef = ref<HTMLCanvasElement>()
 const cameraActive = ref(false)
 const matchedCard = ref<{ name: string; image_url: string } | null>(null)
-
 let stream: MediaStream | null = null
+
+// features.jsonをfetchで読み込む
+const features = ref<any[]>([])
+onMounted(async () => {
+  const res = await fetch('/features.json')
+  features.value = await res.json()
+})
+
+// 特徴量抽出関数
+function extractDescriptorsFromImageData(imageData: ImageData) {
+  const descriptors = []
+  for (let i = 0; i < imageData.data.length; i += 4 * 1000) {
+    descriptors.push([
+      imageData.data[i],
+      imageData.data[i + 1],
+      imageData.data[i + 2],
+    ])
+  }
+  return descriptors
+}
 
 // カメラ起動処理
 async function startCamera() {
@@ -65,7 +77,7 @@ function waitUntilOpenCVReady(): Promise<void> {
   })
 }
 
-// 矩形検出＆canvas描画ループ
+// カード検出＆推定ループ
 async function startDetectionLoop() {
   const canvas = canvasRef.value!
   const video = videoRef.value!
@@ -96,7 +108,6 @@ async function startDetectionLoop() {
     for (let i = 0; i < contours.size(); i++) {
       const contour = contours.get(i)
       const rect = cv.boundingRect(contour)
-
       const aspectRatio = rect.width / rect.height
       const targetRatio = 63 / 88
       const tolerance = 0.2
@@ -105,8 +116,17 @@ async function startDetectionLoop() {
         ctx.strokeStyle = '#00ff88'
         ctx.lineWidth = 3
         ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
-      }
 
+        // カード領域を切り出して特徴量抽出＆推定
+        const cardImageData = ctx.getImageData(rect.x, rect.y, rect.width, rect.height)
+        const descriptors = extractDescriptorsFromImageData(cardImageData)
+        if (features.value.length > 0) {
+          const bestMatch = matchFeatures(descriptors, features.value)
+          if (bestMatch) {
+            matchedCard.value = { name: bestMatch.name, image_url: bestMatch.image_url }
+          }
+        }
+      }
       contour.delete()
     }
 
