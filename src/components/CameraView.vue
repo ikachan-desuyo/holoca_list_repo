@@ -35,9 +35,13 @@ function waitUntilOpenCVReady(): Promise<void> {
 }
 
 async function startCamera() {
+  // 既存のstreamがあれば停止
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop())
+  }
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { exact: "environment" } }
+      video: { facingMode: "environment" }
     })
     if (videoRef.value) {
       videoRef.value.srcObject = stream
