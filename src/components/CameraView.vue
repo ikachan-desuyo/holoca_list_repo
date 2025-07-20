@@ -14,6 +14,9 @@
       ref="canvasRef"
       style="display:block; margin-top:12px; width:100%; max-width:400px;"
     ></canvas>
+    <div v-if="cameraActive && !matchedCard" style="margin-top:16px; color:#888;">
+      Recognizing card...
+    </div>
     <div v-if="matchedCard" style="margin-top:16px;">
       <h3>認識されたカード：{{ matchedCard.name }}</h3>
       <img :src="matchedCard.image_url" style="width:200px; border-radius:8px;" />
@@ -52,7 +55,6 @@ function extractDescriptorsFromImageData(imageData: ImageData) {
 }
 
 // カメラ起動処理
-// カメラ起動処理
 async function startCamera() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -90,6 +92,16 @@ function waitUntilOpenCVReady(): Promise<void> {
   })
 }
 
+// ランダムな色を返す関数
+function getRandomColor() {
+  const letters = '0123456789ABCDEF'
+  let color = '#'
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)]
+  }
+  return color
+}
+
 // カード検出＆推定ループ
 async function startDetectionLoop() {
   const canvas = canvasRef.value!
@@ -118,6 +130,8 @@ async function startDetectionLoop() {
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
+    let detected = false
+
     for (let i = 0; i < contours.size(); i++) {
       const contour = contours.get(i)
       const rect = cv.boundingRect(contour)
@@ -126,7 +140,8 @@ async function startDetectionLoop() {
       const tolerance = 0.2
 
       if (Math.abs(aspectRatio - targetRatio) < tolerance) {
-        ctx.strokeStyle = '#00ff88'
+        detected = true
+        ctx.strokeStyle = getRandomColor()
         ctx.lineWidth = 3
         ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
 
@@ -146,6 +161,11 @@ async function startDetectionLoop() {
     edges.delete()
     contours.delete()
     hierarchy.delete()
+
+    // 検出できなかった場合はmatchedCardをnullに
+    if (!detected) {
+      matchedCard.value = null
+    }
 
     requestAnimationFrame(loop)
   }
