@@ -88,17 +88,15 @@ function startDrawingLoop() {
 
     try {
       if (window.cv && cv.Mat) {
-        // --- OpenCV処理 ---
-        const src = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC4)
+        // canvasから直接Matを作成
+        const src = cv.imread(canvas)
         const gray = new cv.Mat()
         const edges = new cv.Mat()
-
-        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        src.data.set(imageData.data)
 
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
         cv.Canny(gray, edges, 50, 150)
 
+        // エッジ画像をImageDataに変換
         const edgeImageData = new ImageData(
           new Uint8ClampedArray(edges.data),
           edges.cols,
