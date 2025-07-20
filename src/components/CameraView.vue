@@ -133,9 +133,14 @@ async function startDetectionLoop() {
 
   const loop = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
+    // 1. まずカメラ映像を描画
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    // 2. その後にテキストや枠を描画
     ctx.font = 'bold 32px sans-serif'
     ctx.fillStyle = '#00f'
     ctx.fillText('Hello Canvas!', 30, 50)
+
     cap.read(src)
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
     debugStatus.value = 'Canny edge detection...'
@@ -148,12 +153,6 @@ async function startDetectionLoop() {
     const contours = new cv.MatVector()
     const hierarchy = new cv.Mat()
     cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-    ctx.font = 'bold 32px sans-serif'
-    ctx.fillStyle = '#00f'
-    ctx.fillText('hololive card reading', 30, 50)
 
     let detected = false
     let foundRect = false
