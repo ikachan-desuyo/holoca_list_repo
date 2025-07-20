@@ -135,8 +135,8 @@ async function startDetectionLoop() {
     for (let i = 0; i < contours.size(); i++) {
       const contour = contours.get(i)
       const rect = cv.boundingRect(contour)
-      const aspectRatio = rect.width / rect.height
-      const targetRatio = 63 / 88
+      const aspectRatio = rect.height / rect.width // ←縦/横
+      const targetRatio = 88 / 63 // ≒ 1.3968
       const tolerance = 0.2
 
       if (Math.abs(aspectRatio - targetRatio) < tolerance) {
