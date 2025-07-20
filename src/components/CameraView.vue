@@ -52,17 +52,30 @@ function extractDescriptorsFromImageData(imageData: ImageData) {
 }
 
 // カメラ起動処理
+// カメラ起動処理
 async function startCamera() {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: true })
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: "environment" } }
+    })
     if (videoRef.value) {
       videoRef.value.srcObject = stream
       cameraActive.value = true
       await startDetectionLoop()
     }
   } catch (err) {
-    alert('カメラが起動できませんでした（HTTPS接続や権限設定をご確認ください）')
-    console.error('Camera error:', err)
+    // fallback: フロントカメラも許可
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      if (videoRef.value) {
+        videoRef.value.srcObject = stream
+        cameraActive.value = true
+        await startDetectionLoop()
+      }
+    } catch (err2) {
+      alert('カメラが起動できませんでした（HTTPS接続や権限設定をご確認ください）')
+      console.error('Camera error:', err2)
+    }
   }
 }
 
