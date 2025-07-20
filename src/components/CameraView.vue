@@ -25,24 +25,27 @@ const cameraActive = ref(false)
 const opencvReady = ref(false)
 let stream: MediaStream | null = null
 
-// OpenCV.jsのonloadイベントでフラグを立てる
 onMounted(() => {
-  // すでにロード済みなら即座にtrue
-  if (window.cv && window.cv.Mat) {
-    opencvReady.value = true
-    return
+  // OpenCV.jsのonloadイベントでロード検知
+  function checkOpenCV() {
+    if (window.cv && cv.Mat) {
+      opencvReady.value = true
+    } else {
+      opencvReady.value = false
+    }
   }
   // scriptタグを探してonloadを設定
   const scripts = document.getElementsByTagName('script')
   for (let i = 0; i < scripts.length; i++) {
     const s = scripts[i]
     if (s.src && s.src.includes('opencv.js')) {
-      s.addEventListener('load', () => {
-        opencvReady.value = true
-      })
-      break
+      s.addEventListener('load', checkOpenCV)
     }
   }
+  // 念のため2秒後にも再チェック
+  setTimeout(checkOpenCV, 2000)
+  // 初回も一応チェック
+  checkOpenCV()
 })
 
 async function startCamera() {
