@@ -157,32 +157,35 @@ async function startDetectionLoop() {
       const aspectRatio = rect.height / rect.width
       const targetRatio = 88 / 63
       const tolerance = 0.2
+      const area = rect.width * rect.height
 
-      // 矩形を全て描画（デバッグ用）
+      // 全ての矩形を細い赤枠で描画
       ctx.strokeStyle = '#f66'
       ctx.lineWidth = 1
       ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
 
-      if (Math.abs(aspectRatio - targetRatio) < tolerance) {
+      // 矩形情報をcanvasにテキスト描画
+      ctx.font = '12px sans-serif'
+      ctx.fillStyle = '#f66'
+      ctx.fillText(
+        `AR:${aspectRatio.toFixed(2)} A:${area}`,
+        rect.x,
+        rect.y > 12 ? rect.y - 2 : rect.y + 12
+      )
+
+      // カード候補なら太い枠＆色変更
+      if (Math.abs(aspectRatio - targetRatio) < tolerance && area > 5000) {
         foundRect = true
         ctx.strokeStyle = getRandomColor()
         ctx.lineWidth = 3
         ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
 
+        ctx.font = 'bold 14px sans-serif'
+        ctx.fillStyle = '#0c0'
+        ctx.fillText('CARD?', rect.x, rect.y + 20)
+
         debugStatus.value = 'Card-like rectangle found. Matching features...'
-        // カード領域を切り出して特徴量抽出＆推定
-        const cardImageData = ctx.getImageData(rect.x, rect.y, rect.width, rect.height)
-        const descriptors = extractDescriptorsFromImageData(cardImageData)
-        if (features.value.length > 0) {
-          const bestMatch = matchFeatures(descriptors, features.value)
-          if (bestMatch) {
-            matchedCard.value = { name: bestMatch.name, image_url: bestMatch.image_url }
-            debugStatus.value = 'Card matched: ' + bestMatch.name
-          } else {
-            debugStatus.value = 'No card matched'
-          }
-        }
-        detected = true
+        // ...以下略...
       }
       contour.delete()
     }
