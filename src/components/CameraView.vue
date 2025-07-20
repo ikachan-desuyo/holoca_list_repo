@@ -86,36 +86,43 @@ function startDrawingLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-    if (window.cv && cv.Mat) {
-      // --- OpenCV処理 ---
-      const src = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC4)
-      const gray = new cv.Mat()
-      const edges = new cv.Mat()
+    try {
+      if (window.cv && cv.Mat) {
+        // --- OpenCV処理 ---
+        const src = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC4)
+        const gray = new cv.Mat()
+        const edges = new cv.Mat()
 
-      let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      src.data.set(imageData.data)
+        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        src.data.set(imageData.data)
 
-      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
-      cv.Canny(gray, edges, 50, 150)
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
+        cv.Canny(gray, edges, 50, 150)
 
-      const edgeImageData = new ImageData(
-        new Uint8ClampedArray(edges.data),
-        edges.cols,
-        edges.rows
-      )
-      ctx.save()
-      ctx.globalAlpha = 0.5
-      ctx.putImageData(edgeImageData, 0, 0)
-      ctx.restore()
+        const edgeImageData = new ImageData(
+          new Uint8ClampedArray(edges.data),
+          edges.cols,
+          edges.rows
+        )
+        ctx.save()
+        ctx.globalAlpha = 0.5
+        ctx.putImageData(edgeImageData, 0, 0)
+        ctx.restore()
 
-      src.delete()
-      gray.delete()
-      edges.delete()
-    } else {
-      // OpenCV未ロード時もcanvasにテキストを描画
+        src.delete()
+        gray.delete()
+        edges.delete()
+      } else {
+        ctx.font = 'bold 32px sans-serif'
+        ctx.fillStyle = '#f00'
+        ctx.fillText('OpenCV loading...', 30, 50)
+      }
+    } catch (e) {
+      // 例外が発生した場合も映像だけは表示
       ctx.font = 'bold 32px sans-serif'
       ctx.fillStyle = '#f00'
-      ctx.fillText('OpenCV loading...', 30, 50)
+      ctx.fillText('OpenCV error!', 30, 80)
+      console.error(e)
     }
 
     requestAnimationFrame(loop)
