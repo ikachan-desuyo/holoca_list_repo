@@ -13,6 +13,7 @@
       style="display:block; margin-top:12px; width:100%; max-width:400px; border:1px solid #ccc;"
     ></canvas>
     <div v-if="!opencvReady" style="color:#f00; margin-top:12px;">OpenCV.js 読み込み中...</div>
+    <div v-if="errorMsg" style="color:#f00; margin-top:12px; white-space:pre-wrap;">{{ errorMsg }}</div>
   </div>
 </template>
 
@@ -23,10 +24,10 @@ const videoRef = ref<HTMLVideoElement>()
 const canvasRef = ref<HTMLCanvasElement>()
 const cameraActive = ref(false)
 const opencvReady = ref(false)
+const errorMsg = ref('')
 let stream: MediaStream | null = null
 
 onMounted(() => {
-  // OpenCV.jsのonloadイベントでロード検知
   function checkOpenCV() {
     if (window.cv && cv.Mat) {
       opencvReady.value = true
@@ -34,7 +35,6 @@ onMounted(() => {
       opencvReady.value = false
     }
   }
-  // scriptタグを探してonloadを設定
   const scripts = document.getElementsByTagName('script')
   for (let i = 0; i < scripts.length; i++) {
     const s = scripts[i]
@@ -42,13 +42,12 @@ onMounted(() => {
       s.addEventListener('load', checkOpenCV)
     }
   }
-  // 念のため2秒後にも再チェック
   setTimeout(checkOpenCV, 2000)
-  // 初回も一応チェック
   checkOpenCV()
 })
 
 async function startCamera() {
+  errorMsg.value = ''
   if (stream) {
     stream.getTracks().forEach(track => track.stop())
   }
@@ -72,8 +71,7 @@ async function startCamera() {
         startDrawingLoop()
       }
     } catch (err2) {
-      alert('カメラが起動できませんでした')
-      console.error('Camera error:', err2)
+      errorMsg.value = 'カメラが起動できませんでした\n' + (err2 instanceof Error ? err2.message : String(err2))
     }
   }
 }
@@ -99,22 +97,50 @@ function startDrawingLoop() {
 
     try {
       if (window.cv && cv.Mat) {
-        const src = cv.imread(canvas)
+        // cv.imread(canvas) の失敗を検知
+        let src: any
+        try {
+          src = cv.imread(canvas)
+          if (!src || src.empty()) {
+            throw new Error('cv.imread(canvas) で画像の取得に失敗しました')
+          }
+        } catch (e) {
+          errorMsg.value = 'cv.imread(canvas) で失敗しました\n' + (e instanceof Error ? e.message : String(e))
+          requestAnimationFrame(loop)
+          return
+        }
+
         const gray = new cv.Mat()
         const edges = new cv.Mat()
+        try {
+          cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
+          cv.Canny(gray, edges, 50, 150)
+        } catch (e) {
+          errorMsg.value = 'OpenCV画像処理で失敗しました\n' + (e instanceof Error ? e.message : String(e))
+          src.delete()
+          gray.delete()
+          edges.delete()
+          requestAnimationFrame(loop)
+          return
+        }
 
-        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
-        cv.Canny(gray, edges, 50, 150)
-
-        const edgeImageData = new ImageData(
-          new Uint8ClampedArray(edges.data),
-          edges.cols,
-          edges.rows
-        )
-        ctx.save()
-        ctx.globalAlpha = 0.5
-        ctx.putImageData(edgeImageData, 0, 0)
-        ctx.restore()
+        // ImageData生成時の型やサイズ不一致を検知
+        try {
+          if (edges.data.length !== edges.cols * edges.rows) {
+            throw new Error(`edges.data.length (${edges.data.length}) と cols*rows (${edges.cols * edges.rows}) が一致しません`)
+          }
+          const edgeImageData = new ImageData(
+            new Uint8ClampedArray(edges.data),
+            edges.cols,
+            edges.rows
+          )
+          ctx.save()
+          ctx.globalAlpha = 0.5
+          ctx.putImageData(edgeImageData, 0, 0)
+          ctx.restore()
+        } catch (e) {
+          errorMsg.value = 'ImageData生成または描画で失敗しました\n' + (e instanceof Error ? e.message : String(e))
+        }
 
         src.delete()
         gray.delete()
@@ -125,10 +151,7 @@ function startDrawingLoop() {
         ctx.fillText('OpenCV loading...', 30, 50)
       }
     } catch (e) {
-      ctx.font = 'bold 32px sans-serif'
-      ctx.fillStyle = '#f00'
-      ctx.fillText('OpenCV error!', 30, 80)
-      console.error(e)
+      errorMsg.value = 'OpenCV error!\n' + (e instanceof Error ? e.message : String(e))
     }
 
     requestAnimationFrame(loop)
