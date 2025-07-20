@@ -21,6 +21,14 @@
       <h3>認識されたカード：{{ matchedCard.name }}</h3>
       <img :src="matchedCard.image_url" style="width:200px; border-radius:8px;" />
     </div>
+    <div v-if="debugStatus" style="margin-top:12px; color:#f66;">
+      Debug: {{ debugStatus }}
+    </div>
+    <canvas
+      v-show="cameraActive"
+      ref="debugCanvasRef"
+      style="display:block; margin-top:8px; width:100%; max-width:400px; border:1px dashed #f66;"
+    ></canvas>
   </div>
 </template>
 
@@ -30,8 +38,10 @@ import { matchFeatures } from '../utils/matcher'
 
 const videoRef = ref<HTMLVideoElement>()
 const canvasRef = ref<HTMLCanvasElement>()
+const debugCanvasRef = ref<HTMLCanvasElement>()
 const cameraActive = ref(false)
 const matchedCard = ref<{ name: string; image_url: string } | null>(null)
+const debugStatus = ref('')
 let stream: MediaStream | null = null
 
 // features.jsonをfetchで読み込む
@@ -105,25 +115,33 @@ function getRandomColor() {
 // カード検出＆推定ループ
 async function startDetectionLoop() {
   const canvas = canvasRef.value!
+  const debugCanvas = debugCanvasRef.value!
   const video = videoRef.value!
   const ctx = canvas.getContext('2d')!
+  const debugCtx = debugCanvas.getContext('2d')!
 
   canvas.width = video.videoWidth
   canvas.height = video.videoHeight
+  debugCanvas.width = video.videoWidth
+  debugCanvas.height = video.videoHeight
 
   await waitUntilOpenCVReady()
 
   const src = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC4)
   const gray = new cv.Mat()
+  const edges = new cv.Mat()
   const cap = new cv.VideoCapture(video)
 
   const loop = () => {
     cap.read(src)
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
-
-    const edges = new cv.Mat()
+    debugStatus.value = 'Canny edge detection...'
     cv.Canny(gray, edges, 50, 150)
 
+    // エッジ画像をデバッグcanvasに表示
+    cv.imshow(debugCanvas, edges)
+
+    debugStatus.value = 'Finding contours...'
     const contours = new cv.MatVector()
     const hierarchy = new cv.Mat()
     cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
@@ -131,20 +149,27 @@ async function startDetectionLoop() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
     let detected = false
+    let foundRect = false
 
     for (let i = 0; i < contours.size(); i++) {
       const contour = contours.get(i)
       const rect = cv.boundingRect(contour)
-      const aspectRatio = rect.height / rect.width // ←縦/横
-      const targetRatio = 88 / 63 // ≒ 1.3968
+      const aspectRatio = rect.height / rect.width
+      const targetRatio = 88 / 63
       const tolerance = 0.2
 
+      // 矩形を全て描画（デバッグ用）
+      ctx.strokeStyle = '#f66'
+      ctx.lineWidth = 1
+      ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
+
       if (Math.abs(aspectRatio - targetRatio) < tolerance) {
-        detected = true
+        foundRect = true
         ctx.strokeStyle = getRandomColor()
         ctx.lineWidth = 3
         ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
 
+        debugStatus.value = 'Card-like rectangle found. Matching features...'
         // カード領域を切り出して特徴量抽出＆推定
         const cardImageData = ctx.getImageData(rect.x, rect.y, rect.width, rect.height)
         const descriptors = extractDescriptorsFromImageData(cardImageData)
@@ -152,8 +177,12 @@ async function startDetectionLoop() {
           const bestMatch = matchFeatures(descriptors, features.value)
           if (bestMatch) {
             matchedCard.value = { name: bestMatch.name, image_url: bestMatch.image_url }
+            debugStatus.value = 'Card matched: ' + bestMatch.name
+          } else {
+            debugStatus.value = 'No card matched'
           }
         }
+        detected = true
       }
       contour.delete()
     }
@@ -162,7 +191,9 @@ async function startDetectionLoop() {
     contours.delete()
     hierarchy.delete()
 
-    // 検出できなかった場合はmatchedCardをnullに
+    if (!foundRect) {
+      debugStatus.value = 'No card-like rectangle found (aspect ratio mismatch)'
+    }
     if (!detected) {
       matchedCard.value = null
     }
