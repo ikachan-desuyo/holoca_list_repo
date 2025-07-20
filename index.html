@@ -6,9 +6,15 @@
   </head>
   <body>
     <div id="app"></div>
-    <!-- OpenCV.jsをローカル（public内）から読み込む -->
+    <!-- OpenCV.js CDN -->
     <script src="https://docs.opencv.org/4.x/opencv.js"></script>
     <!-- ViteやVueのビルドスクリプト -->
     <script type="module" src="/src/main.ts"></script>
+    <!-- OpenCVテストページへのボタン -->
+    <div style="margin-top:24px;">
+      <button onclick="window.location.href='/opencv_test.html'">
+        OpenCV.js ロードテストページへ
+      </button>
+    </div>
   </body>
 </html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>OpenCV.js ロードテスト</title>
+</head>
+<body>
+  <h2>OpenCV.js ロードテスト</h2>
+  <div id="status" style="font-size:1.2em; color:#333;">OpenCV.jsのロードを待っています...</div>
+  <script src="https://docs.opencv.org/4.x/opencv.js"></script>
+  <script>
+    function checkOpenCV() {
+      if (window.cv && cv.Mat) {
+        document.getElementById('status').textContent = '✅ OpenCV.jsが正しくロードされました！';
+        document.getElementById('status').style.color = '#080';
+      } else {
+        document.getElementById('status').textContent = '❌ OpenCV.jsがまだロードされていません。';
+        document.getElementById('status').style.color = '#f00';
+      }
+    }
+    // OpenCV.jsのonloadイベントでチェック
+    const scripts = document.getElementsByTagName('script');
+    for (let i = 0; i < scripts.length; i++) {
+      const s = scripts[i];
+      if (s.src && s.src.includes('opencv.js')) {
+        s.addEventListener('load', checkOpenCV);
+      }
+    }
+    // 念のため2秒後にも再チェック
+    setTimeout(checkOpenCV, 2000);
+  </script>
+</body>
+</html>
