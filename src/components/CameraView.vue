@@ -1,14 +1,13 @@
 <template>
   <div>
     <button v-if="!cameraActive" @click="startCamera">📸 カメラを起動</button>
-    <!-- <video
-      v-show="cameraActive"
+    <video
       ref="videoRef"
       autoplay
       muted
       playsinline
-      style="width:100%; max-width:400px; border:1px solid #ccc;"
-    ></video> -->
+      style="display:none"
+    ></video>
     <canvas
       v-show="cameraActive"
       ref="canvasRef"
