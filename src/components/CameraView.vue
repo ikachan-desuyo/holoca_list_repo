@@ -148,6 +148,11 @@ async function startDetectionLoop() {
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
+      ctx.font = 'bold 32px sans-serif'
+      ctx.fillStyle = '#00f'
+      ctx.fillText('hololive card reading', 30, 50)
+
+
     let detected = false
     let foundRect = false
 
