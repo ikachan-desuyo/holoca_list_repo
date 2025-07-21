@@ -11,15 +11,13 @@
     <div v-if="recognizedCard" style="color:#080; margin-top:12px;">認識結果: {{ recognizedCard }}</div>
     <button v-if="cameraActive && opencvReady" @click="onRecognize">カード認識する</button>
     <!-- ▼ 読み込んだカード画像を表示 -->
-    <div style="margin-top:24px;">
-      <div v-for="(feature, idx) in features" :key="feature.image_url" style="margin-bottom:16px;">
-        <img
-          :src="feature.image_url"
-          :alt="feature.name"
-          style="max-width:300px; display:block; margin:12px 0; border:1px solid #ccc;"
-        />
-        <div>{{ feature.name }}</div>
-      </div>
+    <div v-if="recognizedCardIdx !== null" style="margin-top:24px;">
+      <img
+        :src="features[recognizedCardIdx].image_url"
+        :alt="features[recognizedCardIdx].name"
+        style="max-width:300px; display:block; margin:12px 0; border:1px solid #ccc;"
+      />
+      <div>{{ features[recognizedCardIdx].name }}</div>
     </div>
     <!-- ▲ ここまで -->
   </div>
@@ -36,6 +34,7 @@ const errorMsg = ref('')
 const features = ref<any[]>([])
 const recognizedCard = ref('')
 let stream: MediaStream | null = null
+const recognizedCardIdx = ref<number | null>(null)
 
 // ▼ 特徴点可視化用
 const selectedFeatureIdx = ref<number | null>(null)
@@ -287,8 +286,10 @@ function recognizeCard(gray: any) {
 
   if (bestMatchIdx >= 0 && bestMatchCount > 10) { // マッチ数閾値は適宜調整
     recognizedCard.value = features.value[bestMatchIdx].name + `（マッチ数: ${bestMatchCount}）`
+    recognizedCardIdx.value = bestMatchIdx
   } else {
     recognizedCard.value = '認識できませんでした'
+    recognizedCardIdx.value = null
   }
 }
 </script>
