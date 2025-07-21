@@ -9,6 +9,7 @@
     <div v-if="!opencvReady" style="color:#f00; margin-top:12px;">OpenCV.js 読み込み中...</div>
     <div v-if="errorMsg" style="color:#f00; margin-top:12px; white-space:pre-wrap;">{{ errorMsg }}</div>
     <div v-if="recognizedCard" style="color:#080; margin-top:12px;">認識結果: {{ recognizedCard }}</div>
+    <button v-if="cameraActive && opencvReady" @click="onRecognize">カード認識する</button>
     <!-- ▼ 特徴点可視化セレクタと画像表示を追加 -->
     <div style="margin-top:24px;">
       <label>特徴点可視化カード選択：</label>
@@ -95,6 +96,23 @@ onMounted(async () => {
     errorMsg.value = 'features*.jsonの読み込みに失敗しました\n' + (e instanceof Error ? e.message : String(e))
   }
 })
+
+function onRecognize() {
+  if (!cameraActive.value || !opencvReady.value || !canvasRef.value) return
+  const canvas = canvasRef.value
+  let gray: any
+  try {
+    const src = cv.imread(canvas)
+    gray = new cv.Mat()
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
+    src.delete()
+  } catch (e) {
+    errorMsg.value = '認識用画像取得失敗\n' + (e instanceof Error ? e.message : String(e))
+    return
+  }
+  recognizeCard(gray)
+  gray.delete()
+}
 
 // ▼ 特徴点可視化処理
 function drawKeypoints() {
@@ -221,15 +239,6 @@ function startDrawingLoop() {
           rgba.delete()
         } catch (e) {
           errorMsg.value = 'ImageData生成または描画で失敗しました\n' + (e instanceof Error ? e.message : String(e))
-        }
-
-        // --- カード認識 ---
-        try {
-          if (features.value.length > 0) {
-            recognizeCard(gray)
-          }
-        } catch (e) {
-          errorMsg.value = 'カード認識処理で失敗しました\n' + (e instanceof Error ? e.message : String(e))
         }
 
         src.delete()
