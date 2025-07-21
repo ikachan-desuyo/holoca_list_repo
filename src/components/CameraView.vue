@@ -74,12 +74,25 @@ onMounted(async () => {
   // features.jsonの読み込み（Vite/GitHub Pages対応）
   try {
     const baseUrl = import.meta.env.BASE_URL || '/'
-    const res = await fetch(baseUrl + 'features.json')
-    features.value = await res.json()
-    // デフォルトで最初のカードを選択
+    let idx = 1
+    let allFeatures: any[] = []
+    while (true) {
+      const url = `${baseUrl}features${idx}.json`
+      try {
+        const res = await fetch(url)
+        if (!res.ok) break
+        const data = await res.json()
+        if (!Array.isArray(data) || data.length === 0) break
+        allFeatures = allFeatures.concat(data)
+        idx++
+      } catch {
+        break
+      }
+    }
+    features.value = allFeatures
     if (features.value.length > 0) selectedFeatureIdx.value = 0
   } catch (e) {
-    errorMsg.value = 'features.jsonの読み込みに失敗しました\n' + (e instanceof Error ? e.message : String(e))
+    errorMsg.value = 'features*.jsonの読み込みに失敗しました\n' + (e instanceof Error ? e.message : String(e))
   }
 })
 
