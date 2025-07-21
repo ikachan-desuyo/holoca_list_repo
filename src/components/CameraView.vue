@@ -10,26 +10,15 @@
     <div v-if="errorMsg" style="color:#f00; margin-top:12px; white-space:pre-wrap;">{{ errorMsg }}</div>
     <div v-if="recognizedCard" style="color:#080; margin-top:12px;">認識結果: {{ recognizedCard }}</div>
     <button v-if="cameraActive && opencvReady" @click="onRecognize">カード認識する</button>
-    <!-- ▼ 特徴点可視化セレクタと画像表示を追加 -->
+    <!-- ▼ 読み込んだカード画像を表示 -->
     <div style="margin-top:24px;">
-      <label>特徴点可視化カード選択：</label>
-      <select v-model="selectedFeatureIdx">
-        <option v-for="(feature, idx) in features" :key="feature.image_url" :value="idx">
-          {{ feature.image_url ? feature.image_url.split('/').pop() : feature.name || idx }}
-        </option>
-      </select>
-      <div v-if="selectedFeatureIdx !== null && features[selectedFeatureIdx]">
+      <div v-for="(feature, idx) in features" :key="feature.image_url" style="margin-bottom:16px;">
         <img
-          :src="features[selectedFeatureIdx].image_url"
-          :alt="features[selectedFeatureIdx].name"
-          ref="featureImgRef"
+          :src="feature.image_url"
+          :alt="feature.name"
           style="max-width:300px; display:block; margin:12px 0; border:1px solid #ccc;"
-          @load="drawKeypoints"
         />
-        <canvas
-          ref="featureKeyCanvasRef"
-          style="max-width:300px; display:block; margin-bottom:12px; border:1px solid #ccc;"
-        ></canvas>
+        <div>{{ feature.name }}</div>
       </div>
     </div>
     <!-- ▲ ここまで -->
